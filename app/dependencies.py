@@ -1,7 +1,9 @@
+# app/dependencies.py
+
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorCollection
 
 from app.config import SECRET_KEY, ALGORITHM, DATABASE_URL, DATABASE_NAME
 from app.crud import get_user_by_email
@@ -9,7 +11,6 @@ from app.schemas import TokenDataSchema, UserResponseSchema
 
 # Setup OAuth2 password bearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
 
 def verify_token(token: str, credentials_exception) -> TokenDataSchema:
     """Verify JWT token and return token data."""
@@ -23,16 +24,18 @@ def verify_token(token: str, credentials_exception) -> TokenDataSchema:
         raise credentials_exception
     return token_data
 
-
 async def get_db() -> AsyncIOMotorDatabase:
-    """Get the database collection."""
+    """Get the database instance."""
     client = AsyncIOMotorClient(DATABASE_URL)
-    db = client[DATABASE_NAME]
-    return db
+    return client[DATABASE_NAME]
 
+
+async def get_user_collection(db: AsyncIOMotorDatabase) -> AsyncIOMotorCollection:
+    """Get the users collection from the database."""
+    return db["users"]
 
 async def get_current_user(token: str = Depends(oauth2_scheme),
-                           db: AsyncIOMotorDatabase = Depends(get_db)) -> UserResponseSchema:
+                           db: AsyncIOMotorCollection = Depends(get_user_collection)) -> UserResponseSchema:
     """Get the current user from the database using the provided token."""
     credentials_exception = HTTPException(
         status_code=401,

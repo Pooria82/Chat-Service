@@ -12,11 +12,12 @@ from app.schemas import TokenDataSchema, UserResponseSchema
 # Setup OAuth2 password bearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+
 def verify_token(token: str, credentials_exception) -> TokenDataSchema:
     """Verify JWT token and return token data."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("email")
+        email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
         token_data = TokenDataSchema(email=email)
@@ -24,15 +25,17 @@ def verify_token(token: str, credentials_exception) -> TokenDataSchema:
         raise credentials_exception
     return token_data
 
+
 async def get_db() -> AsyncIOMotorDatabase:
     """Get the database instance."""
     client = AsyncIOMotorClient(DATABASE_URL)
     return client[DATABASE_NAME]
 
 
-async def get_user_collection(db: AsyncIOMotorDatabase) -> AsyncIOMotorCollection:
+async def get_user_collection(db: AsyncIOMotorDatabase = Depends(get_db)) -> AsyncIOMotorCollection:
     """Get the users collection from the database."""
     return db["users"]
+
 
 async def get_current_user(token: str = Depends(oauth2_scheme),
                            db: AsyncIOMotorCollection = Depends(get_user_collection)) -> UserResponseSchema:

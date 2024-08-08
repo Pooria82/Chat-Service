@@ -1,9 +1,9 @@
 # app/crud.py
 
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from bson import ObjectId
-from bson.json_util import dumps, loads
 from fastapi.encoders import jsonable_encoder
 from motor.motor_asyncio import AsyncIOMotorCollection
 from passlib.context import CryptContext
@@ -14,30 +14,41 @@ from app.schemas import UserCreateSchema, MessageCreateSchema, ChatRoomCreateSch
 # Setup password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 def hash_password(password: str) -> str:
     """Hashes a password."""
     return pwd_context.hash(password)
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifies a password against a hashed password."""
     return pwd_context.verify(plain_password, hashed_password)
 
+
 # Helper functions to convert MongoDB documents to Pydantic models
-def document_to_dict(doc) -> dict:
-    """Converts MongoDB document to dictionary."""
-    return loads(dumps(doc))
+def document_to_dict(document: dict) -> dict:
+    # Ensure the document is a dict
+    document = dict(document)
+    # Convert ObjectId to string
+    if '_id' in document:
+        document['id'] = str(document.pop('_id'))
+    return document
+
 
 def user_from_doc(doc) -> UserInDB:
     """Converts MongoDB user document to Pydantic UserInDB model."""
     return UserInDB(**document_to_dict(doc))
 
+
 def message_from_doc(doc) -> MessageInDB:
     """Converts MongoDB message document to Pydantic MessageInDB model."""
     return MessageInDB(**document_to_dict(doc))
 
+
 def chat_room_from_doc(doc) -> ChatRoomInDB:
     """Converts MongoDB chat room document to Pydantic ChatRoomInDB model."""
     return ChatRoomInDB(**document_to_dict(doc))
+
 
 # User CRUD operations
 async def create_user(db: AsyncIOMotorCollection, user: UserCreateSchema) -> UserResponseSchema:
@@ -48,11 +59,12 @@ async def create_user(db: AsyncIOMotorCollection, user: UserCreateSchema) -> Use
     return UserResponseSchema(**document_to_dict(await db.find_one({"_id": result.inserted_id})))
 
 
-async def get_user_by_email(db: AsyncIOMotorCollection, email: str) -> Optional[UserResponseSchema]:
+async def get_user_by_email(db: AsyncIOMotorCollection, email: str) -> Optional[UserInDB]:
     """Get a user by email."""
     user = await db.find_one({"email": email})
     if user:
-        return UserResponseSchema(**document_to_dict(user))
+        user_dict = document_to_dict(user)
+        return UserInDB(**user_dict)
     return None
 
 
@@ -63,16 +75,18 @@ async def verify_user_password(db: AsyncIOMotorCollection, email: str, password:
         return True
     return False
 
+
 # Message CRUD operations
 async def create_message(db: AsyncIOMotorCollection, room_id: str, message: MessageCreateSchema) -> MessageInDB:
     """Create a new message in a specific chat room."""
     message_dict = jsonable_encoder(message)
+    message_dict['timestamp'] = datetime.now(timezone.utc)
     await db.update_one(
         {"_id": ObjectId(room_id)},
         {"$push": {"messages": message_dict}}
     )
     room = await db.find_one({"_id": ObjectId(room_id)})
-    message = next((msg for msg in room["messages"] if msg["_id"] == message_dict["_id"]), None)
+    message = next((msg for msg in room["messages"] if msg["_id"] == message_dict['_id']), None)
     return message_from_doc(message) if message else None
 
 
@@ -82,6 +96,7 @@ async def get_messages(db: AsyncIOMotorCollection, room_id: str) -> List[Message
     if room and "messages" in room:
         return [message_from_doc(msg) for msg in room["messages"]]
     return []
+
 
 # Chat Room CRUD operations
 async def create_chat_room(db: AsyncIOMotorCollection, chat_room: ChatRoomCreateSchema) -> ChatRoomInDB:

@@ -15,8 +15,13 @@ class UserCreateSchema(UserBaseSchema):
     password: str
 
 
-class UserResponseSchema(UserBaseSchema):
-    id: str  # MongoDB document ID
+class UserResponseSchema(BaseModel):
+    id: str
+    username: str
+    email: str
+
+    class Config:
+        orm_mode = True
 
 
 # Message schemas

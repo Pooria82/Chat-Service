@@ -1,5 +1,3 @@
-# app/routers/auth.py
-
 from datetime import timedelta, datetime, timezone
 from typing import Any, Optional
 
@@ -10,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection
 
 from app.config import SECRET_KEY, ALGORITHM
 from app.crud import create_user, verify_user_password, get_user_by_email
-from app.dependencies import get_db, get_current_user
+from app.dependencies import get_user_collection, get_current_user
 from app.schemas import UserCreateSchema, UserResponseSchema, TokenSchema
 
 # Initialize the router
@@ -33,7 +31,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 @router.post("/token", response_model=TokenSchema)
 async def login_for_access_token(
         form_data: OAuth2PasswordRequestForm = Depends(),
-        db: AsyncIOMotorCollection = Depends(get_db)  # Fix type here
+        db: AsyncIOMotorCollection = Depends(get_user_collection)
+        # Ensure that get_user_collection returns AsyncIOMotorCollection
 ) -> Any:
     user = await get_user_by_email(db, form_data.username)
     if not user:
@@ -58,7 +57,8 @@ async def login_for_access_token(
 @router.post("/signup", response_model=UserResponseSchema)
 async def register_user(
         user: UserCreateSchema,
-        db: AsyncIOMotorCollection = Depends(get_db)  # Fix type here
+        db: AsyncIOMotorCollection = Depends(get_user_collection)
+        # Ensure that get_user_collection returns AsyncIOMotorCollection
 ) -> UserResponseSchema:
     db_user = await get_user_by_email(db, user.email)
     if db_user:

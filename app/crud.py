@@ -1,4 +1,4 @@
-# app/crud.py
+# crud.py
 
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -55,6 +55,7 @@ async def create_user(db: AsyncIOMotorCollection, user: UserCreateSchema) -> Use
     """Create a new user in the database."""
     user_dict = jsonable_encoder(user)
     user_dict['hashed_password'] = hash_password(user.password)  # Hash the password
+    del user_dict['password']  # Remove the plain password
     result = await db.insert_one(user_dict)
     return UserResponseSchema(**document_to_dict(await db.find_one({"_id": result.inserted_id})))
 

@@ -38,6 +38,9 @@ class MessageCreateSchema(MessageBaseSchema):
 class MessageResponseSchema(MessageBaseSchema):
     id: str  # MongoDB document ID
 
+    # class Config:
+    #     orm_mode = True
+
 
 # Chat room schemas
 class ChatRoomBaseSchema(BaseModel):
@@ -52,6 +55,9 @@ class ChatRoomCreateSchema(ChatRoomBaseSchema):
 class ChatRoomResponseSchema(ChatRoomBaseSchema):
     id: str  # MongoDB document ID
     messages: List[MessageResponseSchema]  # List of messages in the chat room
+
+    # class Config:
+    #     orm_mode = True
 
 
 # Authentication schemas

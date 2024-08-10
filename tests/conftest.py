@@ -1,8 +1,9 @@
+import asyncio
 import os
 
 import pytest
 from dotenv import load_dotenv
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.database import get_database
@@ -12,20 +13,24 @@ from app.main import app
 load_dotenv()
 
 
-# Fixture to provide a TestClient instance
-@pytest.fixture(scope="module")
-def test_client():
-    with TestClient(app) as client:
-        yield client
+@pytest.fixture(scope="session")
+def anyio_backend():
+    return "asyncio"
 
 
-# Fixture to set up the test database
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
+def event_loop():
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(scope="session")
 async def setup_db():
     db_url = os.getenv("DATABASE_URL")
     db_name = os.getenv("DATABASE_NAME")
-    test_database = AsyncIOMotorClient(db_url)
-    db = test_database[db_name]
+    client = AsyncIOMotorClient(db_url)
+    db = client[db_name]
 
     # Override the dependency to use the test database
     app.dependency_overrides[get_database] = lambda: db
@@ -33,15 +38,18 @@ async def setup_db():
     yield db
 
     # Close the database connection after tests
-    test_database.close()
+    client.close()
 
 
-# Fixture to clear the database before each test
 @pytest.fixture(scope="function")
 async def clear_db(setup_db):
     db = setup_db
-    # Clear all collections in the test database
     for collection_name in await db.list_collection_names():
         await db[collection_name].delete_many({})
-
     yield
+
+
+@pytest.fixture(scope="function")
+async def async_client():
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        yield client

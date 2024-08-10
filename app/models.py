@@ -16,6 +16,7 @@ class UserCreate(UserBase):
 
 
 class UserInDB(UserBase):
+    id: str  # MongoDB document ID
     hashed_password: str
 
 

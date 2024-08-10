@@ -1,3 +1,5 @@
+# auth.py
+
 from datetime import timedelta, datetime, timezone
 from typing import Any, Optional
 
@@ -29,10 +31,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 @router.post("/token", response_model=TokenSchema)
+@router.post("/login", response_model=TokenSchema)
 async def login_for_access_token(
         form_data: OAuth2PasswordRequestForm = Depends(),
         db: AsyncIOMotorCollection = Depends(get_user_collection)
-        # Ensure that get_user_collection returns AsyncIOMotorCollection
 ) -> Any:
     user = await get_user_by_email(db, form_data.username)
     if not user:
@@ -41,7 +43,7 @@ async def login_for_access_token(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not await verify_user_password(db, form_data.username, form_data.password):
+    if not await verify_user_password(db, user.email, form_data.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -58,7 +60,6 @@ async def login_for_access_token(
 async def register_user(
         user: UserCreateSchema,
         db: AsyncIOMotorCollection = Depends(get_user_collection)
-        # Ensure that get_user_collection returns AsyncIOMotorCollection
 ) -> UserResponseSchema:
     db_user = await get_user_by_email(db, user.email)
     if db_user:

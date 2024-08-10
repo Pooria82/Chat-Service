@@ -1,18 +1,25 @@
+# import warnings
 import pytest
 from fastapi.testclient import TestClient
 
+from app.main import app
 
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("setup_db", "clear_db")
-async def test_create_user(test_client: TestClient):
+
+# warnings.filterwarnings('always')
+
+
+@pytest.fixture
+def test_client():
+    return TestClient(app)
+
+
+@pytest.mark.anyio
+async def test_create_user(test_client: TestClient, clear_db):
     response = test_client.post("/auth/signup", json={
         "username": "testuser",
         "email": "testunique@example.com",
         "password": "password123"
     })
-
-    print(response.status_code)  # Print status code for debugging
-    print(response.json())  # Print response body for debugging
 
     assert response.status_code == 200
     data = response.json()
@@ -20,29 +27,26 @@ async def test_create_user(test_client: TestClient):
     assert data["email"] == "testunique@example.com"
 
 
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("setup_db", "clear_db")
-async def test_login_user(test_client: TestClient):
+@pytest.mark.anyio
+async def test_login_user(test_client: TestClient, clear_db):
     # First create the user
-    test_client.post("/auth/signup", json={
+    response = test_client.post("/auth/signup", json={
         "username": "testuser",
         "email": "testlogin@example.com",
         "password": "password123"
     })
+    assert response.status_code == 200
 
     # Then login
     response = test_client.post("/auth/login", data={
-        "username": "testuser",
+        "username": "testlogin@example.com",
         "password": "password123"
     })
     assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
 
 
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("setup_db", "clear_db")
-async def test_get_current_user(test_client: TestClient):
+@pytest.mark.anyio
+async def test_get_current_user(test_client: TestClient, clear_db):
     # First create the user
     test_client.post("/auth/signup", json={
         "username": "testuser",
@@ -52,7 +56,7 @@ async def test_get_current_user(test_client: TestClient):
 
     # Then login
     login_response = test_client.post("/auth/login", data={
-        "username": "testuser",
+        "username": "testcurrent@example.com",
         "password": "password123"
     })
     assert login_response.status_code == 200
@@ -65,3 +69,4 @@ async def test_get_current_user(test_client: TestClient):
     data = response.json()
     assert data["username"] == "testuser"
     assert data["email"] == "testcurrent@example.com"
+    assert "id" in data

@@ -46,7 +46,7 @@ async def clear_db(setup_db):
     db = setup_db
     for collection_name in await db.list_collection_names():
         await db[collection_name].delete_many({})
-    yield
+    yield db
 
 
 @pytest.fixture(scope="function")

@@ -10,11 +10,11 @@ async def test_send_message(async_client: AsyncClient, clear_db):
         "email": "testchat@example.com",
         "password": "password123"
     })
-    assert response.status_code == 201
+    assert response.status_code == 200
 
     # Log in the user
     response = await async_client.post("/auth/login", data={
-        "username": "testuser",
+        "username": "testchat@example.com",
         "password": "password123"
     })
     assert response.status_code == 200
@@ -38,11 +38,11 @@ async def test_get_messages(async_client: AsyncClient, clear_db):
         "email": "testchat@example.com",
         "password": "password123"
     })
-    assert response.status_code == 201
+    assert response.status_code == 200
 
     # Log in the user
     response = await async_client.post("/auth/login", data={
-        "username": "testuser",
+        "username": "testchat@example.com",
         "password": "password123"
     })
     assert response.status_code == 200
@@ -75,11 +75,11 @@ async def test_no_messages(async_client: AsyncClient, clear_db):
         "email": "testchat@example.com",
         "password": "password123"
     })
-    assert response.status_code == 201
+    assert response.status_code == 200
 
     # Log in the user
     response = await async_client.post("/auth/login", data={
-        "username": "testuser",
+        "username": "testchat@example.com",
         "password": "password123"
     })
     assert response.status_code == 200

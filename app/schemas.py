@@ -1,3 +1,5 @@
+# app/schemas.py
+
 from datetime import datetime
 from typing import Optional, List
 
@@ -22,6 +24,11 @@ class UserResponseSchema(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class UserInDB(UserBaseSchema):
+    id: str  # MongoDB document ID
+    hashed_password: str
 
 
 # Message schemas

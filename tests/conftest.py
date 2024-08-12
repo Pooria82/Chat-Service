@@ -2,7 +2,9 @@ import asyncio
 import os
 
 import pytest
+import socketio
 from dotenv import load_dotenv
+from fastapi_socketio import SocketManager
 from httpx import AsyncClient
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -11,6 +13,8 @@ from app.main import app
 
 # Load environment variables
 load_dotenv()
+
+sio = SocketManager(app=app)
 
 
 @pytest.fixture(scope="session")
@@ -53,3 +57,11 @@ async def clear_db(setup_db):
 async def async_client():
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
+
+
+@pytest.fixture(scope="function")
+async def socket_client():
+    client = socketio.AsyncClient()
+    await client.connect('http://localhost:8000')
+    yield client
+    await client.disconnect()

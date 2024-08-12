@@ -8,6 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
 from app.crud import create_chat_room, get_chat_room_by_id, create_message, get_messages
 from app.dependencies import get_db, get_current_user
 from app.models import UserInDB
+from app.routers.socketio import sio
 from app.schemas import ChatRoomCreateSchema, ChatRoomResponseSchema, MessageCreateSchema, MessageResponseSchema
 
 router = APIRouter()
@@ -54,6 +55,10 @@ async def create_new_message(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found or access denied")
     message.sender = current_user.email  # Set the sender of the message to the current user
     new_message = await create_message(db_chat_rooms, room_id, message)
+
+    # Emit the message to the chat room via Socket.IO
+    await sio.emit('chat_response', {'room_id': room_id, 'message': message.model_dump()}, room=room_id)
+
     return new_message
 
 

@@ -1,13 +1,11 @@
-# app/services/connection_manager.py
-
 from datetime import datetime
 from typing import List, Dict
 
-from fastapi import WebSocket
+import socketio
 from pydantic import BaseModel
 
 
-class WebSocketMessage(BaseModel):
+class SocketIOMessage(BaseModel):
     sender: str
     content: str
     timestamp: datetime
@@ -21,30 +19,30 @@ class WebSocketMessage(BaseModel):
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.sio = socketio.AsyncServer(async_mode='asgi')
+        self.active_connections: Dict[str, List[str]] = {}
 
-    async def connect(self, room_id: str, websocket: WebSocket):
-        """Add a websocket connection to a chat room."""
-        await websocket.accept()
+    async def connect(self, room_id: str, sid: str):
+        """Add a connection to a chat room."""
         if room_id not in self.active_connections:
             self.active_connections[room_id] = []
-        self.active_connections[room_id].append(websocket)
+        self.active_connections[room_id].append(sid)
+        await self.sio.enter_room(sid, room_id)
 
-    def disconnect(self, room_id: str, websocket: WebSocket):
-        """Remove a websocket connection from a chat room."""
+    async def disconnect(self, room_id: str, sid: str):
+        """Remove a connection from a chat room."""
         if room_id in self.active_connections:
-            self.active_connections[room_id].remove(websocket)
+            self.active_connections[room_id].remove(sid)
             if not self.active_connections[room_id]:
                 del self.active_connections[room_id]
+        await self.sio.leave_room(sid, room_id)
 
-    @staticmethod
-    async def send_personal_message(message: WebSocketMessage, websocket: WebSocket):
-        """Send a personal message to a websocket connection."""
-        await websocket.send_text(message.model_dump_json())  # Convert WebSocketMessage to JSON and send
+    async def send_personal_message(self, message: SocketIOMessage, sid: str):
+        """Send a personal message to a connection."""
+        await self.sio.emit('personal_message', message.model_dump(), room=sid)
 
-    async def broadcast(self, room_id: str, message: WebSocketMessage):
-        """Broadcast a message to all websocket connections in a chat room."""
+    async def broadcast(self, room_id: str, message: SocketIOMessage):
+        """Broadcast a message to all connections in a chat room."""
         if room_id in self.active_connections:
-            message_json = message.model_dump_json()  # Convert WebSocketMessage to JSON
-            for connection in self.active_connections[room_id]:
-                await connection.send_text(message_json)
+            message_json = message.model_dump()
+            await self.sio.emit('broadcast_message', message_json, room=room_id)

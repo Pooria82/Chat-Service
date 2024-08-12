@@ -7,10 +7,10 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncI
 
 from app.config import SECRET_KEY, ALGORITHM, DATABASE_URL, DATABASE_NAME
 from app.crud import get_user_by_email
-from app.schemas import TokenDataSchema, UserResponseSchema
+from app.schemas import TokenDataSchema, UserResponseSchema, UserInDB
 
 # Setup OAuth2 password bearer
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
 def verify_token(token: str, credentials_exception) -> TokenDataSchema:
@@ -46,7 +46,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme),
         headers={"WWW-Authenticate": "Bearer"},
     )
     token_data = verify_token(token, credentials_exception)
-    user = await get_user_by_email(db, token_data.email)
+    user: UserInDB = await get_user_by_email(db, token_data.email)
     if user is None:
         raise credentials_exception
-    return user
+    return UserResponseSchema(**user.model_dump())

@@ -21,7 +21,7 @@ async def test_create_user(test_client: TestClient, clear_db):
         "password": "password123"
     })
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["username"] == "testuser"
     assert data["email"] == "testunique@example.com"
@@ -35,7 +35,7 @@ async def test_login_user(test_client: TestClient, clear_db):
         "email": "testlogin@example.com",
         "password": "password123"
     })
-    assert response.status_code == 200
+    assert response.status_code == 201
 
     # Then login
     response = test_client.post("/auth/login", data={

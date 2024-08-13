@@ -39,4 +39,4 @@ class ChatRoomBase(BaseModel):
 
 class ChatRoomInDB(ChatRoomBase):
     id: str  # MongoDB document ID
-    messages: List[MessageInDB]  # Messages associated with the chat room
+    messages: List[MessageInDB] = []  # Messages associated with the chat room

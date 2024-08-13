@@ -56,7 +56,7 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/signup", response_model=UserResponseSchema)
+@router.post("/signup", response_model=UserResponseSchema, status_code=status.HTTP_201_CREATED)
 async def register_user(
         user: UserCreateSchema,
         db: AsyncIOMotorCollection = Depends(get_user_collection)

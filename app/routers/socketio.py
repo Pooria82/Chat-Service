@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, FastAPI
+from fastapi import APIRouter, HTTPException, FastAPI, Depends
 from fastapi_socketio import SocketManager
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_db
 
 app = FastAPI()
 sio = SocketManager(app=app)
@@ -21,11 +22,13 @@ async def connect(sid, environ):
         return False  # Reject the connection if token validation fails
     # Store user information with the connection
     sio.enter_room(sid, user.email)
+    print(f'Client {sid} connected as {user.email}')
 
 
 @sio.on('disconnect')
 async def disconnect(sid):
     print(f'Client {sid} disconnected')
+    # Additional cleanup if necessary
 
 
 @sio.on('chat_message')
@@ -36,3 +39,13 @@ async def handle_message(sid, data):
         await sio.emit('chat_response', {'message': message}, room=room)
     else:
         await sio.emit('error', {'message': 'Invalid data'}, room=sid)
+
+
+# If needed, include the database dependency
+@app.get("/")
+async def index(db: AsyncIOMotorDatabase = Depends(get_db)):
+    return {"message": "Hello, world!"}
+
+
+# Include the router in the app
+app.include_router(router)

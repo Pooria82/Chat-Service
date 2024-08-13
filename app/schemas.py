@@ -1,5 +1,3 @@
-# app/schemas.py
-
 from datetime import datetime
 from typing import Optional, List
 
@@ -38,15 +36,17 @@ class MessageBaseSchema(BaseModel):
     timestamp: datetime
 
 
-class MessageCreateSchema(MessageBaseSchema):
-    pass
+class MessageCreateSchema(BaseModel):
+    sender: str
+    content: str
+    timestamp: str  # Ensure this is a string in ISO 8601 format
 
 
 class MessageResponseSchema(MessageBaseSchema):
     id: str  # MongoDB document ID
 
-    # class Config:
-    #     orm_mode = True
+    class Config:
+        orm_mode = True
 
 
 # Chat room schemas
@@ -55,16 +55,20 @@ class ChatRoomBaseSchema(BaseModel):
     members: List[str]  # List of user emails
 
 
-class ChatRoomCreateSchema(ChatRoomBaseSchema):
-    pass
+class ChatRoomCreateSchema(BaseModel):
+    name: str
+    members: List[str] = []
+
+    class Config:
+        orm_mode = True
 
 
 class ChatRoomResponseSchema(ChatRoomBaseSchema):
     id: str  # MongoDB document ID
-    messages: List[MessageResponseSchema]  # List of messages in the chat room
+    messages: List[MessageResponseSchema] = []  # List of messages in the chat room
 
-    # class Config:
-    #     orm_mode = True
+    class Config:
+        orm_mode = True
 
 
 # Authentication schemas

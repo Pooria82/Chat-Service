@@ -1,8 +1,8 @@
-# app/routers/chat.py
-
+import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.encoders import jsonable_encoder
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
 
 from app.crud import create_chat_room, get_chat_room_by_id, create_message, get_messages
@@ -14,7 +14,15 @@ from app.schemas import ChatRoomCreateSchema, ChatRoomResponseSchema, MessageCre
 router = APIRouter()
 
 
-@router.post("/chat_rooms/", response_model=ChatRoomResponseSchema)
+def custom_jsonable_encoder(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()  # Converts datetime to ISO 8601 format with +00:00
+    if isinstance(obj, datetime.date):
+        return obj.isoformat()  # Converts date to ISO 8601 format
+    return jsonable_encoder(obj)
+
+
+@router.post("/chat_rooms/", response_model=ChatRoomResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_new_chat_room(
         chat_room: ChatRoomCreateSchema,
         db: AsyncIOMotorDatabase = Depends(get_db),
@@ -41,7 +49,8 @@ async def get_chat_room(
     return chat_room
 
 
-@router.post("/chat_rooms/{room_id}/messages", response_model=MessageResponseSchema)
+@router.post("/chat_rooms/{room_id}/messages", response_model=MessageResponseSchema,
+             status_code=status.HTTP_201_CREATED)
 async def create_new_message(
         room_id: str,
         message: MessageCreateSchema,
@@ -57,7 +66,7 @@ async def create_new_message(
     new_message = await create_message(db_chat_rooms, room_id, message)
 
     # Emit the message to the chat room via Socket.IO
-    await sio.emit('chat_response', {'room_id': room_id, 'message': message.model_dump()}, room=room_id)
+    await sio.emit('chat_response', {'room_id': room_id, 'message': custom_jsonable_encoder(message)}, room=room_id)
 
     return new_message
 

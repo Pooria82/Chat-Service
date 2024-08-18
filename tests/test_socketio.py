@@ -1,3 +1,5 @@
+# tests/test_socketio.py
+
 import pytest
 import socketio
 from httpx import AsyncClient
@@ -6,8 +8,8 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_socketio_connection(socket_client):
     client = socket_client
-    connected = await client.connect('http://localhost:8000/ws', headers={'Authorization': 'Bearer YOUR_TEST_TOKEN'})
-    assert connected is not None
+    await client.connect('http://localhost:8000/ws', headers={'Authorization': 'Bearer YOUR_TEST_TOKEN'})
+    assert client.connected
 
     # Test sending a message
     await client.emit('chat_message', {'room': 'test_room', 'message': 'test message'})

@@ -1,17 +1,32 @@
-from fastapi import APIRouter, HTTPException, FastAPI, Depends
+from fastapi import APIRouter, HTTPException
 from fastapi_socketio import SocketManager
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.dependencies import get_current_user, get_db
-
-app = FastAPI()
-sio = SocketManager(app=app)
+from app.dependencies import get_current_user
 
 router = APIRouter()
+
+# Create a SocketManager instance
+sio = SocketManager()
+
+
+# Define the startup and shutdown handlers directly in main.py
+@router.on_event("startup")
+async def startup_event():
+    """Attach the SocketManager to the app on startup."""
+    # SocketManager is attached in main.py
+    pass
+
+
+@router.on_event("shutdown")
+async def shutdown_event():
+    """Perform any cleanup tasks on shutdown."""
+    # SocketManager is detached in main.py
+    pass
 
 
 @sio.on('connect')
 async def connect(sid, environ):
+    """Handle client connection."""
     token = environ.get('HTTP_AUTHORIZATION', None)
     if token is None:
         return False  # Reject the connection if no token is provided
@@ -27,25 +42,17 @@ async def connect(sid, environ):
 
 @sio.on('disconnect')
 async def disconnect(sid):
+    """Handle client disconnection."""
     print(f'Client {sid} disconnected')
     # Additional cleanup if necessary
 
 
 @sio.on('chat_message')
 async def handle_message(sid, data):
+    """Handle chat messages from clients."""
     room = data.get('room')
     message = data.get('message')
     if room and message:
         await sio.emit('chat_response', {'message': message}, room=room)
     else:
         await sio.emit('error', {'message': 'Invalid data'}, room=sid)
-
-
-# If needed, include the database dependency
-@app.get("/")
-async def index(db: AsyncIOMotorDatabase = Depends(get_db)):
-    return {"message": "Hello, world!"}
-
-
-# Include the router in the app
-app.include_router(router)

@@ -1,5 +1,3 @@
-# app/dependencies.py
-
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -13,17 +11,16 @@ from app.schemas import TokenDataSchema, UserResponseSchema, UserInDB
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
-def verify_token(token: str, credentials_exception) -> TokenDataSchema:
+def verify_token(token: str, credentials_exception: HTTPException) -> TokenDataSchema:
     """Verify JWT token and return token data."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-        token_data = TokenDataSchema(email=email)
+        return TokenDataSchema(email=email)
     except JWTError:
         raise credentials_exception
-    return token_data
 
 
 async def get_db() -> AsyncIOMotorDatabase:
@@ -37,8 +34,10 @@ async def get_user_collection(db: AsyncIOMotorDatabase = Depends(get_db)) -> Asy
     return db["users"]
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme),
-                           db: AsyncIOMotorCollection = Depends(get_user_collection)) -> UserResponseSchema:
+async def get_current_user(
+        token: str = Depends(oauth2_scheme),
+        db: AsyncIOMotorCollection = Depends(get_user_collection)
+) -> UserResponseSchema:
     """Get the current user from the database using the provided token."""
     credentials_exception = HTTPException(
         status_code=401,
@@ -49,4 +48,5 @@ async def get_current_user(token: str = Depends(oauth2_scheme),
     user: UserInDB = await get_user_by_email(db, token_data.email)
     if user is None:
         raise credentials_exception
-    return UserResponseSchema(**user.model_dump())
+    return UserResponseSchema(
+        **user.model_dump())

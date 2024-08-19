@@ -1,5 +1,3 @@
-# tests/test_socketio.py
-
 import pytest
 import socketio
 from httpx import AsyncClient
@@ -8,7 +6,6 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_socketio_connection(socket_client):
     client = socket_client
-    await client.connect('http://localhost:8000/ws', headers={'Authorization': 'Bearer YOUR_TEST_TOKEN'})
     assert client.connected
 
     # Test sending a message
@@ -18,22 +15,8 @@ async def test_socketio_connection(socket_client):
 
 
 @pytest.mark.asyncio
-async def test_send_message(async_client: AsyncClient, clear_db):
-    # Sign up a new user
-    response = await async_client.post("/auth/signup", json={
-        "username": "testuser",
-        "email": "testchat@example.com",
-        "password": "password123"
-    })
-    assert response.status_code == 200
-
-    # Log in the user
-    response = await async_client.post("/auth/login", data={
-        "username": "testchat@example.com",
-        "password": "password123"
-    })
-    assert response.status_code == 200
-    token = response.json()["access_token"]
+async def test_send_message(async_client: AsyncClient, clear_db, get_auth_token):
+    token = get_auth_token
 
     # Create a chat room
     response = await async_client.post("/chat/chat_rooms/", json={

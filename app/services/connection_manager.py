@@ -46,3 +46,8 @@ class ConnectionManager:
         if room_id in self.active_connections:
             message_json = message.model_dump()
             await self.sio.emit('broadcast_message', message_json, room=room_id)
+
+
+# Initialize the connection manager
+connection_manager = ConnectionManager()
+sio = connection_manager.sio

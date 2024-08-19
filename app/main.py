@@ -1,31 +1,18 @@
 from fastapi import FastAPI
-from fastapi_socketio import SocketManager
+from socketio import ASGIApp
 
 from app.routers import auth, chat, socketio
+from app.services.connection_manager import sio
 
 app = FastAPI()
-
-# Create a SocketManager instance
-sio = SocketManager()
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Attach the SocketManager to the app on startup."""
-    sio.attach(app)
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Perform any cleanup tasks on shutdown."""
-    # No explicit detach method in SocketManager
-    pass
-
 
 # Include the routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(socketio.router, prefix="/ws", tags=["socketio"])
+
+# Attach SocketManager after app creation
+sio_app = ASGIApp(sio, other_asgi_app=app)
 
 
 @app.get("/")
@@ -37,4 +24,4 @@ async def read_root():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(sio_app, host="0.0.0.0", port=8000)

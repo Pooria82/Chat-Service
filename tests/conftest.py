@@ -1,5 +1,6 @@
 import asyncio
 import os
+import uuid
 
 import pytest
 import socketio
@@ -57,8 +58,46 @@ async def async_client():
 
 
 @pytest.fixture(scope="function")
-async def socket_client():
+async def get_auth_token(async_client):
+    # Sign up a new user with a random email
+    random_email = f"testuser_{uuid.uuid4()}@example.com"
+    signup_data = {
+        "username": "testuser",
+        "email": random_email,
+        "password": "password123"
+    }
+    response = await async_client.post("/auth/signup", json=signup_data)
+    if response.status_code != 201:
+        print("Signup request data:", signup_data)
+        print("Signup response status code:", response.status_code)
+        print("Signup response content:", response.content)
+        try:
+            print("Signup response json:", response.json())
+        except Exception as e:
+            print("Error parsing signup response json:", e)
+    assert response.status_code == 201
+
+    # Log in the user
+    login_data = {
+        "username": random_email,
+        "password": "password123"
+    }
+    response = await async_client.post("/auth/login", data=login_data)
+    if response.status_code != 200:
+        print("Login request data:", login_data)
+        print("Login response status code:", response.status_code)
+        print("Login response content:", response.content)
+        try:
+            print("Login response json:", response.json())
+        except Exception as e:
+            print("Error parsing login response json:", e)
+    assert response.status_code == 200
+    return response.json()["access_token"]
+
+
+@pytest.fixture(scope="function")
+async def socket_client(get_auth_token):
     client = socketio.AsyncClient()
-    await client.connect('http://localhost:8000/ws', headers={'Authorization': 'Bearer YOUR_TEST_TOKEN'})
+    await client.connect('http://localhost:8000/ws/socket.io', headers={'Authorization': f'Bearer {get_auth_token}'})
     yield client
     await client.disconnect()

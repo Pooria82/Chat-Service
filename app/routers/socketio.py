@@ -1,58 +1,44 @@
-from fastapi import APIRouter, HTTPException
-from fastapi_socketio import SocketManager
+from datetime import datetime, timezone
 
-from app.dependencies import get_current_user
+from fastapi import APIRouter, Depends, HTTPException
+from motor.motor_asyncio import AsyncIOMotorCollection
+
+from app.dependencies import get_current_user, get_db
+from app.services.connection_manager import SocketIOMessage
+from app.services.connection_manager import connection_manager, sio
 
 router = APIRouter()
 
-# Create a SocketManager instance
-sio = SocketManager()
 
-
-# Define the startup and shutdown handlers directly in main.py
-@router.on_event("startup")
-async def startup_event():
-    """Attach the SocketManager to the app on startup."""
-    # SocketManager is attached in main.py
-    pass
-
-
-@router.on_event("shutdown")
-async def shutdown_event():
-    """Perform any cleanup tasks on shutdown."""
-    # SocketManager is detached in main.py
-    pass
-
-
-@sio.on('connect')
-async def connect(sid, environ):
-    """Handle client connection."""
+@sio.event
+async def connect(sid, environ, db: AsyncIOMotorCollection = Depends(get_db)):
     token = environ.get('HTTP_AUTHORIZATION', None)
     if token is None:
         return False  # Reject the connection if no token is provided
     token = token.replace('Bearer ', '')
     try:
-        user = await get_current_user(token)
+        user = await get_current_user(token, db)
     except HTTPException:
         return False  # Reject the connection if token validation fails
     # Store user information with the connection
-    sio.enter_room(sid, user.email)
+    await connection_manager.connect(user.email, sid)
     print(f'Client {sid} connected as {user.email}')
 
 
-@sio.on('disconnect')
+@sio.event
 async def disconnect(sid):
-    """Handle client disconnection."""
+    # Logic to determine the room_id should be added here
+    room_id = "room_id_example"
+    await connection_manager.disconnect(room_id, sid)
     print(f'Client {sid} disconnected')
-    # Additional cleanup if necessary
 
 
-@sio.on('chat_message')
-async def handle_message(sid, data):
-    """Handle chat messages from clients."""
+@sio.event
+async def chat_message(sid, data):
     room = data.get('room')
-    message = data.get('message')
-    if room and message:
-        await sio.emit('chat_response', {'message': message}, room=room)
+    message_content = data.get('message')
+    if room and message_content:
+        message = SocketIOMessage(sender=sid, content=message_content, timestamp=datetime.now(timezone.utc))
+        await connection_manager.broadcast(room, message)
     else:
         await sio.emit('error', {'message': 'Invalid data'}, room=sid)

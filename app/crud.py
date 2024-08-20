@@ -73,7 +73,7 @@ async def get_user_by_email(db: AsyncIOMotorCollection, email: str) -> Optional[
     user = await db.find_one({"email": email})
     if user:
         user_dict = document_to_dict(user)
-        return UserInDB(**user_dict)  # Ensure that user_dict is a dict
+        return UserInDB(**user_dict)
     return None
 
 

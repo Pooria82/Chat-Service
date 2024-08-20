@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.database import get_database
+from app.dependencies import get_db
 from app.main import app
 
 # Load environment variables
@@ -96,8 +97,11 @@ async def get_auth_token(async_client):
 
 
 @pytest.fixture(scope="function")
-async def socket_client(get_auth_token):
+async def socket_client(get_auth_token, setup_db):
     client = socketio.AsyncClient()
+
+    app.dependency_overrides[get_db] = lambda: setup_db
+
     await client.connect('http://localhost:8000/ws/socket.io', headers={'Authorization': f'Bearer {get_auth_token}'})
     yield client
     await client.disconnect()

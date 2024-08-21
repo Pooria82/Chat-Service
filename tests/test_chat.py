@@ -107,14 +107,19 @@ async def test_create_message(async_client: AsyncClient, clear_db):
     chat_room_id = create_response.json()["id"]
 
     # Create a new message
+    timestamp = datetime.datetime.now().isoformat()  # Use ISO format for current datetime
     message_data = MessageCreateSchema(
         sender="testchat@example.com",
         content="Hello, world!",
-        timestamp=datetime.datetime.now().isoformat()  # Use ISO format for current datetime
+        timestamp=timestamp  # Ensure this is a string
     )
+
+    # Convert message_data to a JSON-compatible format
+    json_message_data = message_data.model_dump()
+
     response = await async_client.post(
         f"/chat/chat_rooms/{chat_room_id}/messages",
-        json=message_data.model_dump(),
+        json=json_message_data,
         headers={"Authorization": f"Bearer {token}"}
     )
 

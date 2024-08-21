@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Optional, List
 
 from pydantic import BaseModel, EmailStr
@@ -33,13 +32,11 @@ class UserInDB(UserBaseSchema):
 class MessageBaseSchema(BaseModel):
     sender: str
     content: str
-    timestamp: datetime
+    timestamp: str  # Change from datetime to str
 
 
-class MessageCreateSchema(BaseModel):
-    sender: str
-    content: str
-    timestamp: str  # Ensure this is a string in ISO 8601 format
+class MessageCreateSchema(MessageBaseSchema):
+    pass  # No additional fields needed, inherits from MessageBaseSchema
 
 
 class MessageResponseSchema(MessageBaseSchema):
@@ -55,12 +52,8 @@ class ChatRoomBaseSchema(BaseModel):
     members: List[str]  # List of user emails
 
 
-class ChatRoomCreateSchema(BaseModel):
-    name: str
+class ChatRoomCreateSchema(ChatRoomBaseSchema):
     members: List[str] = []
-
-    class Config:
-        orm_mode = True
 
 
 class ChatRoomResponseSchema(ChatRoomBaseSchema):

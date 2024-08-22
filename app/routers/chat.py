@@ -7,9 +7,11 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.dependencies import get_db, get_current_user
 from app.models import UserInDB
-from app.schemas import ChatRoomCreateSchema, ChatRoomResponseSchema, MessageCreateSchema, MessageResponseSchema
+from app.schemas import ChatRoomCreateSchema, ChatRoomResponseSchema, MessageCreateSchema, MessageResponseSchema, \
+    PrivateChatResponseSchema
 from app.services.chat_service import ChatService
 from app.services.connection_manager import connection_manager, sio
+from app.services.user_status_service import UserStatusService
 
 router = APIRouter()
 
@@ -22,10 +24,20 @@ def custom_jsonable_encoder(obj):
     return jsonable_encoder(obj)
 
 
-# Dependency to inject ChatService with necessary parameters
-def get_chat_service(db: AsyncIOMotorDatabase = Depends(get_db)):
-    db_chat_rooms = db["chat_rooms"]  # Extract the specific collection from the database
-    return ChatService(db_chat_rooms=db_chat_rooms, connection_manager=connection_manager)
+def get_chat_service(db: AsyncIOMotorDatabase = Depends(get_db), user_status_service: UserStatusService = Depends()):
+    db_chat_rooms = db["chat_rooms"]
+    return ChatService(db_chat_rooms=db_chat_rooms, connection_manager=connection_manager,
+                       user_status_service=user_status_service)
+
+
+@router.get("/private_chats/", response_model=List[PrivateChatResponseSchema])
+async def get_private_chats(
+        current_user: UserInDB = Depends(get_current_user),
+        chat_service: ChatService = Depends(get_chat_service)
+):
+    """Get a list of private chats with online status."""
+    private_chats = await chat_service.get_private_chats(current_user)
+    return private_chats
 
 
 @router.post("/chat_rooms/", response_model=ChatRoomResponseSchema, status_code=status.HTTP_201_CREATED)

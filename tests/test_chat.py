@@ -1,4 +1,5 @@
 import datetime
+import os
 
 import pytest
 from httpx import AsyncClient
@@ -168,3 +169,40 @@ async def test_get_all_messages(async_client: AsyncClient, clear_db):
     response_data = response.json()
     assert len(response_data) > 0
     assert response_data[0]["content"] == "Hello, world!"
+
+
+@pytest.mark.asyncio
+async def test_upload_media(async_client: AsyncClient, clear_db):
+    # Sign up and log in to get the token
+    token = await sign_up_and_login(async_client, "testchat@example.com", "password123")
+
+    # Create a new chat room to get its ID
+    chat_room_data = ChatRoomCreateSchema(name="Test Room", members=[])
+    create_response = await async_client.post(
+        "/chat/chat_rooms/",
+        json=chat_room_data.model_dump(),  # Use model_dump()
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    chat_room_id = create_response.json()["id"]
+
+    # Create a temporary file to upload
+    test_file_content = b"this is a test file"
+    test_file_path = "test_media_file.txt"
+    with open(test_file_path, "wb") as f:
+        f.write(test_file_content)
+
+    # Upload the media file
+    with open(test_file_path, "rb") as file:
+        response = await async_client.post(
+            "/chat/upload_media/",
+            files={"file": ("test_media_file.txt", file, "text/plain")},
+            headers={"Authorization": f"Bearer {token}"}
+        )
+
+    # Clean up the temporary file
+    os.remove(test_file_path)
+
+    assert response.status_code == 200
+    response_data = response.json()
+    assert "file_url" in response_data
+    assert response_data["file_url"].endswith("test_media_file.txt")

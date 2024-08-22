@@ -77,6 +77,15 @@ async def get_user_by_email(db: AsyncIOMotorCollection, email: str) -> Optional[
     return None
 
 
+async def get_user_by_username(db: AsyncIOMotorCollection, username: str) -> Optional[UserInDB]:
+    """Get a user by username."""
+    user = await db.find_one({"username": username})
+    if user:
+        user_dict = document_to_dict(user)
+        return UserInDB(**user_dict)
+    return None
+
+
 async def verify_user_password(db: AsyncIOMotorCollection, email: str, password: str) -> bool:
     """Verify a user's password."""
     user = await get_user_by_email(db, email)
@@ -125,3 +134,11 @@ async def get_chat_room_by_id(db: AsyncIOMotorCollection, room_id: str) -> Optio
     if room:
         return chat_room_from_doc(room)
     return None
+
+
+async def get_private_chats_from_db(db_chat_rooms: AsyncIOMotorCollection, user_id: str) -> List[dict]:
+    cursor = db_chat_rooms.find({"members": user_id, "is_group_chat": False})
+    private_chats = []
+    async for chat in cursor:
+        private_chats.append(chat)
+    return private_chats

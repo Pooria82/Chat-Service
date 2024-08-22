@@ -1,11 +1,7 @@
-# import warnings
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-
-
-# warnings.filterwarnings('always')
 
 
 @pytest.fixture
@@ -70,3 +66,43 @@ async def test_get_current_user(test_client: TestClient, clear_db):
     assert data["username"] == "testuser"
     assert data["email"] == "testcurrent@example.com"
     assert "id" in data
+
+
+@pytest.mark.anyio
+async def test_signup_with_duplicate_email(test_client: TestClient, clear_db):
+    # First create the user
+    test_client.post("/auth/signup", json={
+        "username": "testuser1",
+        "email": "duplicate@example.com",
+        "password": "password123"
+    })
+
+    # Try to create another user with the same email
+    response = test_client.post("/auth/signup", json={
+        "username": "testuser2",
+        "email": "duplicate@example.com",
+        "password": "password123"
+    })
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Email already registered"}
+
+
+@pytest.mark.anyio
+async def test_signup_with_duplicate_username(test_client: TestClient, clear_db):
+    # First create the user
+    test_client.post("/auth/signup", json={
+        "username": "duplicateuser",
+        "email": "testuser1@example.com",
+        "password": "password123"
+    })
+
+    # Try to create another user with the same username
+    response = test_client.post("/auth/signup", json={
+        "username": "duplicateuser",
+        "email": "testuser2@example.com",
+        "password": "password123"
+    })
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Username already registered"}

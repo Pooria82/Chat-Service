@@ -7,6 +7,9 @@ class UserStatusService:
     def __init__(self):
         self.active_connections: Dict[str, Set[str]] = {}
 
+    def is_user_online(self, email: str) -> bool:
+        return email in self.active_connections
+
     def set_user_online(self, email: str, sid: str):
         if email not in self.active_connections:
             self.active_connections[email] = set()

@@ -64,6 +64,15 @@ class ChatRoomResponseSchema(ChatRoomBaseSchema):
         orm_mode = True
 
 
+class PrivateChatResponseSchema(BaseModel):
+    id: str
+    other_user_email: str
+    is_online: bool
+
+    class Config:
+        orm_mode = True
+
+
 # Authentication schemas
 class TokenSchema(BaseModel):
     access_token: str

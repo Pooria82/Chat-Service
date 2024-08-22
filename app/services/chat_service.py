@@ -5,16 +5,19 @@ import aiofiles
 from fastapi import HTTPException, status, UploadFile
 from motor.motor_asyncio import AsyncIOMotorCollection
 
-from app.crud import create_chat_room, get_chat_room_by_id, create_message, get_messages
+from app.crud import create_chat_room, get_chat_room_by_id, create_message, get_messages, get_private_chats_from_db
 from app.models import UserInDB
 from app.schemas import ChatRoomCreateSchema, ChatRoomResponseSchema, MessageCreateSchema, MessageResponseSchema
 from app.services.connection_manager import ConnectionManager, SocketIOMessage
+from app.services.user_status_service import UserStatusService
 
 
 class ChatService:
-    def __init__(self, db_chat_rooms: AsyncIOMotorCollection, connection_manager: ConnectionManager):
+    def __init__(self, db_chat_rooms: AsyncIOMotorCollection, connection_manager: ConnectionManager,
+                 user_status_service: UserStatusService):
         self.db_chat_rooms = db_chat_rooms
         self.connection_manager = connection_manager
+        self.user_status_service = user_status_service
 
     async def create_new_chat_room(self, chat_room: ChatRoomCreateSchema,
                                    current_user: UserInDB) -> ChatRoomResponseSchema:
@@ -104,6 +107,16 @@ class ChatService:
         ]
 
         return message_schemas
+
+    async def get_private_chats(self, current_user: UserInDB) -> List[dict]:
+        """Retrieve a list of private chats and include online status for each member."""
+        # Assume we fetch the private chats from the database
+        private_chats = await get_private_chats_from_db(self.db_chat_rooms, current_user.id)
+
+        for chat in private_chats:
+            chat["is_online"] = self.user_status_service.is_user_online(chat["other_user_email"])
+
+        return private_chats
 
     @staticmethod
     async def save_media(file: UploadFile) -> str:

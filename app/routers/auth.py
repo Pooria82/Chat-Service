@@ -1,5 +1,3 @@
-# auth.py
-
 from datetime import timedelta, datetime, timezone
 from typing import Any, Optional
 
@@ -9,7 +7,7 @@ from jose import jwt
 from motor.motor_asyncio import AsyncIOMotorCollection
 
 from app.config import SECRET_KEY, ALGORITHM
-from app.crud import create_user, verify_user_password, get_user_by_email
+from app.crud import create_user, verify_user_password, get_user_by_email, get_user_by_username
 from app.dependencies import get_user_collection, get_current_user
 from app.schemas import UserCreateSchema, UserResponseSchema, TokenSchema
 
@@ -61,12 +59,20 @@ async def register_user(
         user: UserCreateSchema,
         db: AsyncIOMotorCollection = Depends(get_user_collection)
 ) -> UserResponseSchema:
-    db_user = await get_user_by_email(db, user.email)
-    if db_user:
+    db_user_email = await get_user_by_email(db, user.email)
+    if db_user_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered",
         )
+
+    db_user_username = await get_user_by_username(db, user.username)
+    if db_user_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered",
+        )
+
     new_user = await create_user(db, user)
     return new_user
 

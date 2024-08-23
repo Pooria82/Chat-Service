@@ -2,6 +2,7 @@ import asyncio
 import os
 import uuid
 
+import httpx
 import pytest
 import socketio
 from dotenv import load_dotenv
@@ -59,41 +60,49 @@ async def async_client():
 
 
 @pytest.fixture(scope="function")
-async def get_auth_token(async_client):
-    # Sign up a new user with a random email
-    random_email = f"testuser_{uuid.uuid4()}@example.com"
+async def get_auth_token(async_client: httpx.AsyncClient):
+    # Sign up a new user with a random username and email
+    random_uuid = str(uuid.uuid4())
+    random_email = f"testuser_{random_uuid}@example.com"
     signup_data = {
-        "username": "testuser",
+        "username": f"testuser_{random_uuid}",
         "email": random_email,
         "password": "password123"
     }
+
     response = await async_client.post("/auth/signup", json=signup_data)
+
     if response.status_code != 201:
         print("Signup request data:", signup_data)
         print("Signup response status code:", response.status_code)
         print("Signup response content:", response.content)
+
         try:
             print("Signup response json:", response.json())
         except Exception as e:
             print("Error parsing signup response json:", e)
-    assert response.status_code == 201
 
-    # Log in the user
+        raise AssertionError("Signup failed. Check the request and response details.")
+
+    # Log signup response for debugging
+    print("Signup successful:", response.json())
+
+    # Get the auth token after signup
     login_data = {
-        "username": random_email,
-        "password": "password123"
+        "username": signup_data["username"],
+        "password": signup_data["password"]
     }
-    response = await async_client.post("/auth/login", data=login_data)
-    if response.status_code != 200:
+
+    # Send login request
+    login_response = await async_client.post("/auth/login", data=login_data)
+
+    if login_response.status_code != 200:
         print("Login request data:", login_data)
-        print("Login response status code:", response.status_code)
-        print("Login response content:", response.content)
-        try:
-            print("Login response json:", response.json())
-        except Exception as e:
-            print("Error parsing login response json:", e)
-    assert response.status_code == 200
-    return response.json()["access_token"]
+        print("Login response status code:", login_response.status_code)
+        print("Login response content:", login_response.content)
+        raise AssertionError("Login failed. Check the request and response details.")
+
+    return login_response.json()["access_token"]
 
 
 @pytest.fixture(scope="function")

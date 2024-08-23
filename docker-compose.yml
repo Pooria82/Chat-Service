@@ -1,14 +1,28 @@
 version: '3.8'
 
 services:
-  web:
-    build: .
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastapi_app
     ports:
       - "8000:8000"
-    depends_on:
-      - mongo
+    networks:
+      - app-network
 
-  mongo:
-    image: mongo
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: nginx
     ports:
-      - "27017:27017"
+      - "80:80"
+    depends_on:
+      - app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

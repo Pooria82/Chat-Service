@@ -67,5 +67,6 @@ async def chat_message(sid, data):
 
 @sio.event
 async def get_online_users(sid):
-    online_users = user_status_service.get_online_users()
+    online_users = user_status_service.online_users  # Accessing the property directly
     await sio.emit('online_users', list(online_users), room=sid)
+

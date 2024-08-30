@@ -47,19 +47,23 @@ class ChatService:
 
         return ChatRoomResponseSchema(**chat_room_dict)
 
-    async def create_new_message(self, room_id: str, message: MessageCreateSchema,
-                                 current_user: UserInDB) -> MessageResponseSchema:
+    async def create_message(self, room_id: str, message: MessageCreateSchema,
+                             current_user: UserInDB) -> MessageResponseSchema:
         """Create a new message in a specific chat room."""
         chat_room = await get_chat_room_by_id(self.db_chat_rooms, room_id)
 
         if chat_room is None or current_user.email not in chat_room.members:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found or access denied")
 
-        message.sender = current_user.email
+        # Prepare message data, ensuring the timestamp is always set
+        message_data = {
+            "sender": current_user.email,
+            "content": message.content,
+            "timestamp": message.timestamp or datetime.now(timezone.utc)
+        }
 
-        # Set the timestamp if it is missing
-        if not message.timestamp:
-            message.timestamp = datetime.now(timezone.utc)
+        # Create a MessageCreateSchema instance
+        message = MessageCreateSchema(**message_data)
 
         new_message = await create_message(self.db_chat_rooms, room_id, message)
 
@@ -86,6 +90,22 @@ class ChatService:
             chat["is_online"] = self.user_status_service.is_user_online(chat["other_user_email"])
 
         return private_chats
+
+    async def get_all_messages(self, room_id: str, current_user: UserInDB) -> List[MessageResponseSchema]:
+        """Retrieve all messages for a given chat room."""
+        chat_room = await get_chat_room_by_id(self.db_chat_rooms, room_id)
+
+        # Check if the chat room exists and the user is a member
+        if chat_room is None or current_user.email not in chat_room.members:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found or access denied")
+
+        # Retrieve messages for the chat room
+        messages = chat_room.messages or []
+
+        # Convert messages to the appropriate schema
+        messages_response = [MessageResponseSchema(**message.model_dump()) for message in messages]
+
+        return messages_response
 
     @staticmethod
     async def save_media(file: UploadFile) -> str:

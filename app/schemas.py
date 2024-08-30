@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 # User schemas
@@ -35,10 +35,10 @@ class MessageBaseSchema(BaseModel):
     timestamp: str
 
 
-class MessageCreateSchema(MessageBaseSchema):
+class MessageCreateSchema(BaseModel):
     sender: str
     content: str
-    timestamp: datetime
+    timestamp: Optional[datetime] = Field(None)
 
 
 class MessageResponseSchema(MessageBaseSchema):

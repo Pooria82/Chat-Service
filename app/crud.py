@@ -28,17 +28,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def document_to_dict(document: dict) -> Dict[str, Any]:
     """Converts MongoDB document to a dictionary."""
     doc_dict = dict(document)
-
-    # Convert ObjectId to string for top-level _id
     if '_id' in doc_dict:
         doc_dict['id'] = str(doc_dict.pop('_id'))
-
-    # Convert ObjectId to string for messages if messages is a list
     if 'messages' in doc_dict and isinstance(doc_dict['messages'], list):
         for message in doc_dict['messages']:
             if isinstance(message, dict) and '_id' in message:
                 message['id'] = str(message.pop('_id'))
-
     return doc_dict
 
 
@@ -62,8 +57,8 @@ async def create_user(db: AsyncIOMotorCollection, user: UserCreateSchema) -> Use
     """Create a new user in the database."""
     user_dict = jsonable_encoder(user)
     user_dict = dict(user_dict)
-    user_dict['hashed_password'] = hash_password(user.password)  # Hash the password
-    del user_dict['password']  # Remove the plain password
+    user_dict['hashed_password'] = hash_password(user.password)
+    del user_dict['password']
     result = await db.insert_one(user_dict)
     return UserResponseSchema(**document_to_dict(await db.find_one({"_id": result.inserted_id})))
 
@@ -99,8 +94,9 @@ async def create_message(db: AsyncIOMotorCollection, room_id: str, message: Mess
     """Create a new message in a specific chat room."""
     message_dict = jsonable_encoder(message)
     message_dict = dict(message_dict)
-    message_dict['timestamp'] = datetime.now(timezone.utc)
-    message_dict['_id'] = ObjectId()  # Generate a unique ObjectId for the message
+    if 'timestamp' not in message_dict or message_dict['timestamp'] is None:
+        message_dict['timestamp'] = datetime.now(timezone.utc)
+    message_dict['_id'] = ObjectId()
     update_result = await db.update_one(
         {"_id": ObjectId(room_id)},
         {"$push": {"messages": message_dict}}
@@ -123,7 +119,7 @@ async def create_chat_room(db: AsyncIOMotorCollection, chat_room: ChatRoomCreate
     """Create a new chat room."""
     chat_room_dict = jsonable_encoder(chat_room)
     chat_room_dict = dict(chat_room_dict)
-    chat_room_dict['messages'] = []  # Ensure messages field is initialized
+    chat_room_dict['messages'] = []
     result = await db.insert_one(chat_room_dict)
     return chat_room_from_doc(await db.find_one({"_id": result.inserted_id}))
 

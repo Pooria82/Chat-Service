@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timezone, date
 from typing import List
 
 from fastapi import APIRouter, Depends, status, UploadFile, File, Form
@@ -17,9 +17,9 @@ router = APIRouter()
 
 
 def custom_jsonable_encoder(obj):
-    if isinstance(obj, datetime.datetime):
+    if isinstance(obj, datetime):
         return obj.isoformat()  # Converts datetime to ISO 8601 format with +00:00
-    if isinstance(obj, datetime.date):
+    if isinstance(obj, date):
         return obj.isoformat()  # Converts date to ISO 8601 format
     return jsonable_encoder(obj)
 
@@ -81,9 +81,13 @@ async def create_new_message(
         file_url = await chat_service.save_media(file)
         message_data["content"] += f" [Media: {file_url}]"
 
-    # Create a MessageCreateSchema object
+    # Set the timestamp if it's not already in the message_data
+    if 'timestamp' not in message_data:
+        message_data['timestamp'] = datetime.now(timezone.utc)
+
+    # Create the message object
     message = MessageCreateSchema(**message_data)
-    new_message = await chat_service.create_new_message(room_id, message, current_user)
+    new_message = await chat_service.create_message(room_id, message, current_user)
 
     # Emit the message to the chat room via Socket.IO
     await sio.emit('chat_response', {'room_id': room_id, 'message': custom_jsonable_encoder(message)}, room=room_id)

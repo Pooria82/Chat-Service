@@ -43,6 +43,7 @@ class MessageCreateSchema(BaseModel):
 
 class MessageResponseSchema(MessageBaseSchema):
     id: str
+    sender: str
 
     class Config:
         from_attributes = True

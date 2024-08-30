@@ -121,7 +121,9 @@ class ChatService:
 
             messages_response = [
                 MessageResponseSchema(**{
-                    **message.model_dump(),
+                    "id": str(message.id),
+                    "sender": message.sender,  # This ensures the sender is included
+                    "content": message.content,
                     "timestamp": message.timestamp.isoformat() if isinstance(message.timestamp,
                                                                              datetime) else message.timestamp
                 })

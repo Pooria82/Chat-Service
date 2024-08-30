@@ -91,18 +91,19 @@ async def verify_user_password(db: AsyncIOMotorCollection, email: str, password:
 
 # Message CRUD operations
 async def create_message(db: AsyncIOMotorCollection, room_id: str, message: MessageCreateSchema) -> MessageInDB:
-    """Create a new message in a specific chat room."""
     message_dict = jsonable_encoder(message)
-    message_dict = dict(message_dict)
     if 'timestamp' not in message_dict or message_dict['timestamp'] is None:
         message_dict['timestamp'] = datetime.now(timezone.utc)
     message_dict['_id'] = ObjectId()
+
     update_result = await db.update_one(
         {"_id": ObjectId(room_id)},
         {"$push": {"messages": message_dict}}
     )
     if update_result.modified_count == 0:
+        print(f"Failed to add message to room: {room_id}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found")
+
     return message_from_doc(message_dict)
 
 
@@ -125,11 +126,10 @@ async def create_chat_room(db: AsyncIOMotorCollection, chat_room: ChatRoomCreate
 
 
 async def get_chat_room_by_id(db: AsyncIOMotorCollection, room_id: str) -> Optional[ChatRoomInDB]:
-    """Get a chat room by its ID."""
     room = await db.find_one({"_id": ObjectId(room_id)})
-    if room:
-        return chat_room_from_doc(room)
-    return None
+    if not room:
+        print(f"Chat room not found with ID: {room_id}")
+    return chat_room_from_doc(room) if room else None
 
 
 async def get_private_chats_from_db(db_chat_rooms: AsyncIOMotorCollection, user_id: str) -> List[dict]:

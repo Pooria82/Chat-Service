@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, date
 from typing import List
 
-from fastapi import APIRouter, Depends, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, status, UploadFile, File, Form, HTTPException
 from fastapi.encoders import jsonable_encoder
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -59,8 +59,13 @@ async def get_chat_room(
         current_user: UserInDB = Depends(get_current_user)
 ):
     """Get a specific chat room by its ID."""
-    chat_room = await chat_service.get_chat_room(room_id, current_user)
-    return chat_room
+    try:
+        chat_room = await chat_service.get_chat_room(room_id, current_user)
+        return chat_room
+    except Exception as e:
+        print(f"Error getting chat room: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get chat room")
+
 
 
 @router.post("/chat_rooms/{room_id}/messages", response_model=MessageResponseSchema,
@@ -102,5 +107,6 @@ async def get_all_messages(
         current_user: UserInDB = Depends(get_current_user)
 ):
     """Get all messages in a specific chat room."""
+    print(f"Fetching all messages for room_id: {room_id}, user: {current_user.email}")
     messages = await chat_service.get_all_messages(room_id, current_user)
     return messages

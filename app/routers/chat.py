@@ -1,7 +1,7 @@
 import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends, status, UploadFile, File
+from fastapi import APIRouter, Depends, status, UploadFile, File, Form
 from fastapi.encoders import jsonable_encoder
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -67,11 +67,22 @@ async def get_chat_room(
              status_code=status.HTTP_201_CREATED)
 async def create_new_message(
         room_id: str,
-        message: MessageCreateSchema,
+        content: str = Form(...),
+        file: UploadFile = File(None),  # Optional file
         chat_service: ChatService = Depends(get_chat_service),
         current_user: UserInDB = Depends(get_current_user)
 ):
-    """Create a new message in a specific chat room."""
+    """Create a new message in a specific chat room, optionally with a file."""
+    # Use the current user's email as the sender
+    message_data = {"sender": current_user.email, "content": content}
+
+    if file:
+        # Save media file if provided and add to message content or handle separately
+        file_url = await chat_service.save_media(file)
+        message_data["content"] += f" [Media: {file_url}]"
+
+    # Create a MessageCreateSchema object
+    message = MessageCreateSchema(**message_data)
     new_message = await chat_service.create_new_message(room_id, message, current_user)
 
     # Emit the message to the chat room via Socket.IO
@@ -89,13 +100,3 @@ async def get_all_messages(
     """Get all messages in a specific chat room."""
     messages = await chat_service.get_all_messages(room_id, current_user)
     return messages
-
-
-@router.post("/upload_media/")
-async def upload_media(
-        file: UploadFile = File(...),
-        chat_service: ChatService = Depends(get_chat_service)  # Injecting ChatService dependency
-):
-    """Upload a media file."""
-    file_url = await chat_service.save_media(file)
-    return {"file_url": file_url}

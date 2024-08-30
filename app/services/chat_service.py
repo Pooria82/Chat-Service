@@ -1,11 +1,12 @@
 import os
+from datetime import datetime, timezone
 from typing import List
 
 import aiofiles
 from fastapi import HTTPException, status, UploadFile
 from motor.motor_asyncio import AsyncIOMotorCollection
 
-from app.crud import create_chat_room, get_chat_room_by_id, create_message, get_messages, get_private_chats_from_db
+from app.crud import create_chat_room, get_chat_room_by_id, create_message, get_private_chats_from_db
 from app.models import UserInDB
 from app.schemas import ChatRoomCreateSchema, ChatRoomResponseSchema, MessageCreateSchema, MessageResponseSchema
 from app.services.connection_manager import ConnectionManager, SocketIOMessage
@@ -21,27 +22,22 @@ class ChatService:
 
     async def create_new_chat_room(self, chat_room: ChatRoomCreateSchema,
                                    current_user: UserInDB) -> ChatRoomResponseSchema:
-        """Create a new chat room and add the current user as a member."""
         if current_user.email not in chat_room.members:
             chat_room.members.append(current_user.email)
         new_chat_room = await create_chat_room(self.db_chat_rooms, chat_room)
 
         chat_room_id = str(new_chat_room.id)
-
         new_chat_room_dict = new_chat_room.model_dump()
         new_chat_room_dict["id"] = chat_room_id
 
         return ChatRoomResponseSchema(**new_chat_room_dict)
 
     async def get_chat_room(self, room_id: str, current_user: UserInDB) -> ChatRoomResponseSchema:
-        """Get a specific chat room by its ID."""
         chat_room = await get_chat_room_by_id(self.db_chat_rooms, room_id)
 
-        # Check if the chat room exists and the user is a member
         if chat_room is None or current_user.email not in chat_room.members:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found or access denied")
 
-        # Convert ChatRoomInDB to dictionary
         chat_room_dict = {
             "id": str(chat_room.id),
             "name": chat_room.name,
@@ -56,61 +52,34 @@ class ChatService:
         """Create a new message in a specific chat room."""
         chat_room = await get_chat_room_by_id(self.db_chat_rooms, room_id)
 
-        # Ensure chat_room is an instance of ChatRoomInDB
         if chat_room is None or current_user.email not in chat_room.members:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found or access denied")
 
-        # Set the sender of the message to the current user
         message.sender = current_user.email
 
-        # Save the new message
+        # Set the timestamp if it is missing
+        if not message.timestamp:
+            message.timestamp = datetime.now(timezone.utc)
+
         new_message = await create_message(self.db_chat_rooms, room_id, message)
 
-        # Convert the new message to a dictionary
         new_message_dict = {
-            "id": str(new_message.id),  # Access id with dot notation
-            "sender": new_message.sender,  # Access sender with dot notation
-            "content": new_message.content,  # Access content with dot notation
-            "timestamp": new_message.timestamp.isoformat()  # Convert timestamp to ISO format
+            "id": str(new_message.id),
+            "sender": new_message.sender,
+            "content": new_message.content,
+            "timestamp": new_message.timestamp.isoformat()
         }
 
-        # Broadcast the new message to all clients in the room
         socket_message = SocketIOMessage(
             sender=new_message.sender,
             content=new_message.content,
-            timestamp=new_message.timestamp.isoformat()  # Convert timestamp to ISO format
+            timestamp=new_message.timestamp.isoformat()
         )
         await self.connection_manager.broadcast(room_id, socket_message)
 
         return MessageResponseSchema(**new_message_dict)
 
-    async def get_all_messages(self, room_id: str, current_user: UserInDB) -> List[MessageResponseSchema]:
-        """Get all messages in a specific chat room."""
-        chat_room = await get_chat_room_by_id(self.db_chat_rooms, room_id)
-
-        # Ensure chat_room is an instance of ChatRoomInDB
-        if chat_room is None or current_user.email not in chat_room.members:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found or access denied")
-
-        # Retrieve all messages in the chat room
-        messages = await get_messages(self.db_chat_rooms, room_id)
-
-        # Convert list of MessageInDB to list of MessageResponseSchema
-        message_schemas = [
-            MessageResponseSchema(
-                id=str(message.id),  # Use dot notation for attributes
-                sender=message.sender,
-                content=message.content,
-                timestamp=message.timestamp.isoformat()  # Ensure timestamp is in ISO format if it's a datetime object
-            )
-            for message in messages
-        ]
-
-        return message_schemas
-
     async def get_private_chats(self, current_user: UserInDB) -> List[dict]:
-        """Retrieve a list of private chats and include online status for each member."""
-        # Assume we fetch the private chats from the database
         private_chats = await get_private_chats_from_db(self.db_chat_rooms, current_user.id)
 
         for chat in private_chats:
@@ -120,9 +89,8 @@ class ChatService:
 
     @staticmethod
     async def save_media(file: UploadFile) -> str:
-        """Save the uploaded media file and return its file path."""
         media_directory = "media"
-        os.makedirs(media_directory, exist_ok=True)  # Create directory if it doesn't exist
+        os.makedirs(media_directory, exist_ok=True)
         file_location = os.path.join(media_directory, file.filename)
         async with aiofiles.open(file_location, 'wb') as out_file:
             content = await file.read()

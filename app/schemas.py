@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, List
 
 from pydantic import BaseModel, EmailStr
@@ -20,36 +21,37 @@ class UserResponseSchema(BaseModel):
     email: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserInDB(UserBaseSchema):
-    id: str  # MongoDB document ID
+    id: str
     hashed_password: str
 
 
 # Message schemas
 class MessageBaseSchema(BaseModel):
-    sender: str
     content: str
-    timestamp: str  # Change from datetime to str
+    timestamp: str
 
 
 class MessageCreateSchema(MessageBaseSchema):
-    pass  # No additional fields needed, inherits from MessageBaseSchema
+    sender: str
+    content: str
+    timestamp: datetime
 
 
 class MessageResponseSchema(MessageBaseSchema):
-    id: str  # MongoDB document ID
+    id: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Chat room schemas
 class ChatRoomBaseSchema(BaseModel):
     name: str
-    members: List[str]  # List of user emails
+    members: List[str]
 
 
 class ChatRoomCreateSchema(ChatRoomBaseSchema):
@@ -57,11 +59,11 @@ class ChatRoomCreateSchema(ChatRoomBaseSchema):
 
 
 class ChatRoomResponseSchema(ChatRoomBaseSchema):
-    id: str  # MongoDB document ID
-    messages: List[MessageResponseSchema] = []  # List of messages in the chat room
+    id: str
+    messages: List[MessageResponseSchema] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class PrivateChatResponseSchema(BaseModel):
@@ -70,7 +72,7 @@ class PrivateChatResponseSchema(BaseModel):
     is_online: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Authentication schemas
